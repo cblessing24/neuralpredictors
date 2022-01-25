@@ -57,20 +57,27 @@ class Readout(Module):
                 f"Reduction method '{reduction}' is not recognized. Valid values are ['mean', 'sum', None]"
             )
 
-    def resolve_reduction_method(self, reduction: Reduction = "mean", average: Optional[bool] = None) -> Reduction:
+    def resolve_reduction_method(self, reduction: Reduction = None, average: Optional[bool] = None) -> Reduction:
         """
         Helper method which transforms the old and deprecated argument 'average' in the regularizer into
         the new argument 'reduction' (if average is not None). This is done in order to agree with the terminology in pytorch).
         """
+        if reduction is not None and average is not None:
+            raise ValueError("Use of reduction and average simultaneously is invalid")
         if average is not None:
-            warnings.warn("Use of 'average' is deprecated. Please consider using `reduction` instead")
-            reduction = "mean" if average else "sum"
+            warnings.warn(
+                "Use of 'average' is deprecated. Please consider using 'reduction' instead", DeprecationWarning
+            )
+            return "mean" if average else "sum"
+        if reduction is None:
+            return "mean"
         return reduction
 
     def resolve_deprecated_gamma_readout(self, feature_reg_weight: float, gamma_readout: Optional[float]) -> float:
         if gamma_readout is not None:
             warnings.warn(
-                "Use of 'gamma_readout' is deprecated. Please consider using the readout's feature-regularization parameter instead"
+                "Use of 'gamma_readout' is deprecated. Please consider using the readout's feature-regularization parameter instead",
+                DeprecationWarning,
             )
             feature_reg_weight = gamma_readout
         return feature_reg_weight
@@ -91,7 +98,7 @@ class Readout(Module):
             self.bias.data = mean_activity
 
     def __repr__(self) -> str:
-        return super().__repr__() + " [{}]\n".format(self.__class__.__name__)  # type: ignore[no-untyped-call,no-any-return]
+        return f"{super().__repr__()} [{self.__class__.__name__}]\n"  # type: ignore[no-untyped-call,no-any-return]
 
 
 class ClonedReadout(Module):
