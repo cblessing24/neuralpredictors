@@ -73,6 +73,7 @@ class Readout(Module):
             return "mean"
         return reduction
 
+    # TODO: Check if ignoring feature_reg_weight if gamma_readout is passed is intentional
     def resolve_deprecated_gamma_readout(self, feature_reg_weight: float, gamma_readout: Optional[float]) -> float:
         if gamma_readout is not None:
             warnings.warn(
