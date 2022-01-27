@@ -6,13 +6,26 @@ from torch.nn.parameter import Parameter
 from torch import Tensor
 import torch
 
-from neuralpredictors.layers.readouts.base import Readout, Reduction
+from neuralpredictors.layers.readouts.base import ClonedReadout, Readout, Reduction
 
 
 class MyReadout(Readout):
     def __init__(self) -> None:
         super().__init__()  # type: ignore[no-untyped-call]
         self.bias = Parameter(torch.tensor([1.0, 2.0, 3.0]))  # type: ignore[attr-defined]
+        self.features = Parameter(
+            torch.tensor(  # type: ignore[attr-defined]
+                [
+                    [1.0, 2.0, 3.0],
+                    [4.0, 5.0, 6.0],
+                    [7.0, -8.0, 9.0],
+                    [10.0, 11.0, 12.0],
+                ]
+            )
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        return x
 
 
 @pytest.fixture
@@ -108,3 +121,36 @@ def test_if_bias_is_initialized_with_mean_activity_if_passed(readout: MyReadout)
 
 def test_repr(readout: MyReadout) -> None:
     assert repr(readout) == "MyReadout() [MyReadout]\n"
+
+
+@pytest.fixture
+def cloned_readout(readout: MyReadout) -> ClonedReadout:
+    return ClonedReadout(readout)
+
+
+def test_if_alpha_is_correctly_initialized(cloned_readout: ClonedReadout) -> None:
+    assert torch.equal(cloned_readout.alpha, Parameter(torch.tensor([1.0, 1.0, 1.0])))  # type: ignore[attr-defined]
+
+
+def test_if_beta_is_correctly_initialized(cloned_readout: ClonedReadout) -> None:
+    assert torch.equal(cloned_readout.beta, Parameter(torch.tensor([0.0, 0.0, 0.0])))  # type: ignore[attr-defined]
+
+
+def test_foward(cloned_readout: ClonedReadout) -> None:
+    out = cloned_readout(torch.ones(4, 3))  # type: ignore[attr-defined]
+    assert torch.equal(out, torch.ones((4, 3)))  # type: ignore[attr-defined]
+
+
+def test_feature_l1_if_average_is_true(cloned_readout: ClonedReadout) -> None:
+    assert torch.equal(cloned_readout.feature_l1(), torch.tensor(6.5))  # type: ignore[attr-defined]
+
+
+def test_feature_l1_if_average_is_false(cloned_readout: ClonedReadout) -> None:
+    assert torch.equal(cloned_readout.feature_l1(average=False), torch.tensor(78.0))  # type: ignore[attr-defined]
+
+
+def test_cloned_readout_is_initialized_correctly(cloned_readout: ClonedReadout) -> None:
+    cloned_readout.alpha.data.fill_(5.0)
+    cloned_readout.beta.data.fill_(6.0)
+    cloned_readout.initialize()
+    assert torch.all(cloned_readout.alpha == 1.0) and torch.all(cloned_readout.beta == 0.0)  # type: ignore[attr-defined]
